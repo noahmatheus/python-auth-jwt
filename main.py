@@ -113,23 +113,23 @@ async def rota_protegida(email: str = Depends(verificar_token)):
 
 # Rota de listar
 @app.get("/usuarios", response_model=list[UsuarioOut])
-def listar_usuarios(db: Session = Depends(get_db)):
+def listar_usuarios(db: Session = Depends(get_db), usuario: Usuario = Depends(verificar_token)):
     usuarios = db.query(Usuario).all()
     return usuarios
 
 # Rota de salvar
 @app.post("/usuarios")
-def criar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+def criar_usuario(usuario_in: UsuarioCreate, db: Session = Depends(get_db), usuario: Usuario = Depends(verificar_token)):
     # Verifica se já existe
-    db_usuario = db.query(Usuario).filter(Usuario.email == usuario.email).first()
+    db_usuario = db.query(Usuario).filter(Usuario.email == usuario_in.email).first()
     if db_usuario:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado")
 
     # Hash da senha
-    hashed_password = pwd_context.hash(usuario.senha)
+    hashed_password = pwd_context.hash(usuario_in.senha)
 
     novo_usuario = Usuario(
-        email=usuario.email,
+        email=usuario_in.email,
         password=hashed_password
     )
     db.add(novo_usuario)
@@ -140,14 +140,14 @@ def criar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
 
 # rota de editar
 @app.put("/usuarios/{id_usuario}", response_model=UsuarioOut)
-def atualizar_usuario(id_usuario: int, usuario: UsuarioCreate, db: Session = Depends(get_db)):
+def atualizar_usuario(id_usuario: int, usuario_in: UsuarioCreate, db: Session = Depends(get_db), usuario: Usuario = Depends(verificar_token)):
     db_usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
     if not db_usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     
     # Atualiza dados do usuario
-    db_usuario.email = usuario.email
-    db_usuario.password = pwd_context.hash(usuario.senha)
+    db_usuario.email = usuario_in.email
+    db_usuario.password = pwd_context.hash(usuario_in.senha)
     
     db.commit()
     db.refresh(db_usuario)
@@ -156,7 +156,7 @@ def atualizar_usuario(id_usuario: int, usuario: UsuarioCreate, db: Session = Dep
 
 # rota de delete
 @app.delete("/usuarios/{id_usuario}")
-def deletar_usuario(id_usuario: int, db: Session = Depends(get_db)):
+def deletar_usuario(id_usuario: int, db: Session = Depends(get_db), usuario: Usuario = Depends(verificar_token)):
     db_usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
     if not db_usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
